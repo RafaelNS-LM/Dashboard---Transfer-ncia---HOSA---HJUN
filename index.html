@@ -400,7 +400,8 @@ function renderKP(){
   card('Linhas do arquivo',fN(META.rawRows),fN(ENT.length)+' entregas únicas · '+META.dup+' NF adicional(is) consolidada(s)','','all')}
 /* ---------- tabela de entregas (abre ao clicar nos cards / linhas dos quadros) ---------- */
 let DT1='',DT2=null;const DS={dt1:{by:'n',desc:false},dt2:{by:'n',desc:false}};
-const DCOL=[['n','Nr° Entrega'],['rota','Rota'],['cid','Cidade'],['bai','Bairro Pessoa Visita'],['nom','Nome Pessoa Visita'],['nf','Nota Fiscal'],['cli','Cliente'],['stR','Status'],['uoT','Dt. Últ. Ocorrência']];
+const DCOL=[['n','Nr° Entrega'],['rota','Rota'],['cid','Cidade'],['bai','Bairro Pessoa Visita'],['nom','Nome Pessoa Visita'],['nf','Nota Fiscal'],['cli','Cliente'],['stR','Status'],['pp','Dt. Primeiro Prazo'],['uoT','Dt. Últ. Ocorrência']];
+const ppStr=v=>{if(v==null)return '';const d=new Date(v);return z2(d.getUTCDate())+'/'+z2(d.getUTCMonth()+1)+'/'+d.getUTCFullYear()};
 const DMAP={cid:['Cidade',e=>e.cid],cli:['Cliente',e=>e.cli],ua:['Origem',e=>e.ua]};
 function dtInfo(box){
  if(box==='dt1'){
@@ -410,12 +411,12 @@ function dtInfo(box){
  if(!DT2)return null;const dm=DMAP[DT2.dm];
  return {t:DT2.u+' · '+dm[0]+': '+DT2.v,l:ENT.filter(e=>unitOf(e)===DT2.u&&isTrans(e)&&dm[1](e)===DT2.v)}}
 function dtSort(l,s){const d=s.desc?-1:1,k=s.by,nc=(a,b)=>String(a).localeCompare(String(b),'pt',{numeric:true});
- return l.slice().sort((a,b)=>(k==='uoT'?(a.uoT||0)-(b.uoT||0):nc(a[k]??'',b[k]??''))*d||nc(a.n,b.n))}
+ return l.slice().sort((a,b)=>(k==='uoT'?(a.uoT||0)-(b.uoT||0):k==='pp'?(a.pp||0)-(b.pp||0):nc(a[k]??'',b[k]??''))*d||nc(a.n,b.n))}
 function renderDt(box){
  const el=$(box),I=dtInfo(box);if(!I){el.innerHTML='';return}
  const s=DS[box],l=dtSort(I.l,s),tv=I.l.reduce((x,e)=>x+e.val,0),ar=k=>s.by===k?(s.desc?' ▼':' ▲'):'';
  el.innerHTML=`<div class="dth"><b>${esc(I.t)}</b><span class="sub">${fN(l.length)} entrega(s) · ${fR(tv)} · clique no título da coluna para classificar</span><span class="dtb"><button class="p" data-wa="${box}">Enviar imagem (WhatsApp)</button><button data-ex="${box}">Exportar Excel</button><button data-dtx="${box}">Fechar</button></span></div>`+
-  (l.length?`<div class="dtw"><table class="pt dt"><thead><tr>${DCOL.map(c=>`<th class="so" data-dts="${box}|${c[0]}">${c[1]}${ar(c[0])}</th>`).join('')}</tr></thead><tbody>${l.map(e=>`<tr><td>${esc(e.n)}</td><td>${esc(e.rota)}</td><td>${esc(e.cid)}</td><td title="${esc(e.bai)}">${esc(e.bai)}</td><td title="${esc(e.nom)}">${esc(e.nom)}</td><td title="${esc(e.nf)}">${esc(e.nf)}</td><td title="${esc(e.cli)}">${esc(e.cli)}</td><td>${esc(e.stR)}</td><td>${esc(e.uo)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sub">Nenhuma entrega.</div>')}
+  (l.length?`<div class="dtw"><table class="pt dt"><thead><tr>${DCOL.map(c=>`<th class="so" data-dts="${box}|${c[0]}">${c[1]}${ar(c[0])}</th>`).join('')}</tr></thead><tbody>${l.map(e=>`<tr><td>${esc(e.n)}</td><td>${esc(e.rota)}</td><td>${esc(e.cid)}</td><td title="${esc(e.bai)}">${esc(e.bai)}</td><td title="${esc(e.nom)}">${esc(e.nom)}</td><td title="${esc(e.nf)}">${esc(e.nf)}</td><td title="${esc(e.cli)}">${esc(e.cli)}</td><td>${esc(e.stR)}</td><td>${ppStr(e.pp)}</td><td>${esc(e.uo)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sub">Nenhuma entrega.</div>')}
 function showDt(box){renderDt(box);const el=$(box);if(el.innerHTML)el.scrollIntoView({behavior:'smooth',block:'nearest'})}
 const COLB=[
  {h:'Sigla Unidade Entrega',v:e=>unitOf(e)},{h:'Nro. Entrega',v:e=>e.n},{h:'ROTAS',v:e=>e.rota},{h:'Cliente',v:e=>e.cli},{h:'Nota Fiscal',v:e=>e.nf},
@@ -517,7 +518,7 @@ function exportBy(k){
  if(k==='bar')xl('BARRAR_ENTREGA',COLB.map(c=>c.h),barrar().map(e=>COLB.map(c=>c.v(e))));
  else if(k==='hv')xl('Pedidos_alto_valor_'+uLab().replace(/\W/g,''),['Unidade de entrega','Valor','Cidade','Bairro','Nome Pessoa Visita','Cliente','Nota Fiscal'],
    ENT.filter(unitOK).flatMap(e=>e.nfv.filter(x=>x.val>=hvMin()).map(x=>[unitOf(e),x.val,e.cid,e.bai,e.nom,e.cli,x.nf])).sort((a,b)=>b[1]-a[1]));
- else if(k==='dt1'||k==='dt2'){const I=dtInfo(k);if(I)xl('Entregas_'+I.t.replace(/\W+/g,'_').slice(0,50),DCOL.map(c=>c[1]),dtSort(I.l,DS[k]).map(e=>[e.n,e.rota,e.cid,e.bai,e.nom,e.nf,e.cli,e.stR,e.uo]))}
+ else if(k==='dt1'||k==='dt2'){const I=dtInfo(k);if(I)xl('Entregas_'+I.t.replace(/\W+/g,'_').slice(0,50),DCOL.map(c=>c[1]),dtSort(I.l,DS[k]).map(e=>[e.n,e.rota,e.cid,e.bai,e.nom,e.nf,e.cli,e.stR,ppStr(e.pp),e.uo]))}
  else if(k==='b2b')xl('Entregas_B2B_'+uLab().replace(/\W/g,''),['Cidade','Nome Pessoa Visita','Quantidade','Valor'],nomGroup(isB2B).sort((a,b)=>b.n-a.n).map(o=>[o.cid,o.nom,o.n,o.v]));
  else if(k==='cen')xl('Centauro_'+uLab().replace(/\W/g,''),['Nome Pessoa Visita','Cidade','Quantidade','Valor'],cenList().map(o=>[o.nom,o.cid,o.n,o.v]))}
 
