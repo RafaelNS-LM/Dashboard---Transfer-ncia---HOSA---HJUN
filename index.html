@@ -215,6 +215,7 @@ table.rtm tr.sel td.rr{background:#1f48f3;color:#fff;outline:none}table.rtm tr.s
 .dtp{scroll-margin-top:64px;margin-top:12px}.dtp:empty{display:none}
 .dth{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 8px}.dth b{font-size:15px}.dtb{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .dtw{max-height:520px;overflow:auto;border:1px solid var(--bd);border-radius:10px;background:#fff}
+.route-cards{margin:10px 0 12px;padding:11px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}.route-cards-title{font-size:12px;font-weight:800;color:var(--tx);margin-bottom:8px}.route-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}.route-count-card{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:9px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--card);width:100%;cursor:pointer;color:var(--tx);text-align:left;font:inherit}.route-count-card:hover,.route-count-card.active{border-color:var(--pb);box-shadow:0 0 0 2px color-mix(in srgb,var(--pb) 24%,transparent)}.route-count-card span{font-size:14px;color:var(--pb);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.route-count-card b{font-size:16px;line-height:1;color:#e11d2e;white-space:nowrap}
 table.pt.dt{max-width:none;width:100%}table.pt.dt th,table.pt.dt td{padding:5px 5px;font-size:12px}table.pt.dt td{font-weight:600;max-width:190px;overflow:hidden;text-overflow:ellipsis}table.pt.dt td:nth-child(2){max-width:none;white-space:nowrap}table.pt.dt td:nth-child(4),table.pt.dt td:nth-child(5){max-width:115px}table.pt.dt td:nth-child(6){max-width:95px}table.pt.dt td:nth-child(7){max-width:95px}table.pt.dt td:nth-child(8),table.pt.dt td:nth-child(9){max-width:none;overflow:visible}table.pt.dt tbody tr:nth-child(even) td{background:#F2F5FB}
 .nst2 tr.ck{cursor:pointer}.nst2 tr.ck:hover td{background:rgba(31,72,243,.12)}.nst2 tr.ck.sel td{background:#1f48f3;color:#fff}
 </style></head><body><div class="w">
@@ -402,6 +403,10 @@ function renderKP(){
 let DT1='',DT2=null;const DS={dt1:{by:'n',desc:false},dt2:{by:'n',desc:false}};
 const DCOL=[['n','Nr° Entrega'],['rota','Rota'],['cid','Cidade'],['bai','Bairro Pessoa Visita'],['nom','Nome Pessoa Visita'],['nf','Nota Fiscal'],['cli','Cliente'],['stR','Status'],['pp','Dt. Primeiro Prazo'],['uoT','Dt. Últ. Ocorrência']];
 const ppStr=v=>{if(v==null)return '';const d=new Date(v);return z2(d.getUTCDate())+'/'+z2(d.getUTCMonth()+1)+'/'+d.getUTCFullYear()};
+let DRT={k:'',r:''};
+const rtKey=r=>{const n=parseFloat(r);return /^\d+$/.test(String(r))?[0,n,'']:[1,0,String(r)]};
+const rtCmp=(a,b)=>{const x=rtKey(a),y=rtKey(b);return x[0]-y[0]||x[1]-y[1]||x[2].localeCompare(y[2],'pt')};
+const dtRt=(box,l)=>box==='dt1'&&DT1.startsWith('pz:')&&DRT.k===DT1&&DRT.r?l.filter(e=>e.rota===DRT.r):l;
 const DMAP={cid:['Cidade',e=>e.cid],cli:['Cliente',e=>e.cli],ua:['Origem',e=>e.ua]};
 function dtInfo(box){
  if(box==='dt1'){
@@ -414,8 +419,11 @@ function dtSort(l,s){const d=s.desc?-1:1,k=s.by,nc=(a,b)=>String(a).localeCompar
  return l.slice().sort((a,b)=>(k==='uoT'?(a.uoT||0)-(b.uoT||0):k==='pp'?(a.pp||0)-(b.pp||0):nc(a[k]??'',b[k]??''))*d||nc(a.n,b.n))}
 function renderDt(box){
  const el=$(box),I=dtInfo(box);if(!I){el.innerHTML='';return}
- const s=DS[box],l=dtSort(I.l,s),tv=I.l.reduce((x,e)=>x+e.val,0),ar=k=>s.by===k?(s.desc?' ▼':' ▲'):'';
- el.innerHTML=`<div class="dth"><b>${esc(I.t)}</b><span class="sub">${fN(l.length)} entrega(s) · ${fR(tv)} · clique no título da coluna para classificar</span><span class="dtb"><button class="p" data-wa="${box}">Enviar imagem (WhatsApp)</button><button data-ex="${box}">Exportar Excel</button><button data-dtx="${box}">Fechar</button></span></div>`+
+ const isPz=box==='dt1'&&DT1.startsWith('pz:');if(isPz&&DRT.k!==DT1)DRT={k:DT1,r:''};
+ const rc={};if(isPz)I.l.forEach(e=>{rc[e.rota]=(rc[e.rota]||0)+1});if(isPz&&DRT.r&&!rc[DRT.r])DRT.r='';
+ const base=dtRt(box,I.l),s=DS[box],l=dtSort(base,s),tv=base.reduce((x,e)=>x+e.val,0),
+ rcards=isPz?`<div class="route-cards"><div class="route-cards-title">Quantidade por rota · clique para listar os pedidos</div><div class="route-cards-grid">${Object.keys(rc).sort(rtCmp).map(r=>`<button type="button" class="route-count-card${DRT.r===r?' active':''}" data-drc="${esc(r)}" aria-pressed="${DRT.r===r}"><span title="${esc(r)}">Rota - ${esc(r===SEMROTA?'SEM ROTA':r)}</span><b>${fN(rc[r])}</b></button>`).join('')}</div></div>`:'',ar=k=>s.by===k?(s.desc?' ▼':' ▲'):'';
+ el.innerHTML=`<div class="dth"><b>${esc(I.t)}</b><span class="sub">${fN(l.length)} entrega(s) · ${fR(tv)} · clique no título da coluna para classificar</span><span class="dtb"><button class="p" data-wa="${box}">Enviar imagem (WhatsApp)</button><button data-ex="${box}">Exportar Excel</button><button data-dtx="${box}">Fechar</button></span></div>`+rcards+
   (l.length?`<div class="dtw"><table class="pt dt"><thead><tr>${DCOL.map(c=>`<th class="so" data-dts="${box}|${c[0]}">${c[1]}${ar(c[0])}</th>`).join('')}</tr></thead><tbody>${l.map(e=>`<tr><td>${esc(e.n)}</td><td>${esc(e.rota)}</td><td>${esc(e.cid)}</td><td title="${esc(e.bai)}">${esc(e.bai)}</td><td title="${esc(e.nom)}">${esc(e.nom)}</td><td title="${esc(e.nf)}">${esc(e.nf)}</td><td title="${esc(e.cli)}">${esc(e.cli)}</td><td>${esc(e.stR)}</td><td>${ppStr(e.pp)}</td><td>${esc(e.uo)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sub">Nenhuma entrega.</div>')}
 function showDt(box){renderDt(box);const el=$(box);if(el.innerHTML)el.scrollIntoView({behavior:'smooth',block:'nearest'})}
 const COLB=[
@@ -518,7 +526,7 @@ function exportBy(k){
  if(k==='bar')xl('BARRAR_ENTREGA',COLB.map(c=>c.h),barrar().map(e=>COLB.map(c=>c.v(e))));
  else if(k==='hv')xl('Pedidos_alto_valor_'+uLab().replace(/\W/g,''),['Unidade de entrega','Valor','Cidade','Bairro','Nome Pessoa Visita','Cliente','Nota Fiscal'],
    ENT.filter(unitOK).flatMap(e=>e.nfv.filter(x=>x.val>=hvMin()).map(x=>[unitOf(e),x.val,e.cid,e.bai,e.nom,e.cli,x.nf])).sort((a,b)=>b[1]-a[1]));
- else if(k==='dt1'||k==='dt2'){const I=dtInfo(k);if(I)xl('Entregas_'+I.t.replace(/\W+/g,'_').slice(0,50),DCOL.map(c=>c[1]),dtSort(I.l,DS[k]).map(e=>[e.n,e.rota,e.cid,e.bai,e.nom,e.nf,e.cli,e.stR,ppStr(e.pp),e.uo]))}
+ else if(k==='dt1'||k==='dt2'){const I=dtInfo(k);if(I)xl('Entregas_'+I.t.replace(/\W+/g,'_').slice(0,50),DCOL.map(c=>c[1]),dtSort(dtRt(k,I.l),DS[k]).map(e=>[e.n,e.rota,e.cid,e.bai,e.nom,e.nf,e.cli,e.stR,ppStr(e.pp),e.uo]))}
  else if(k==='b2b')xl('Entregas_B2B_'+uLab().replace(/\W/g,''),['Cidade','Nome Pessoa Visita','Quantidade','Valor'],nomGroup(isB2B).sort((a,b)=>b.n-a.n).map(o=>[o.cid,o.nom,o.n,o.v]));
  else if(k==='cen')xl('Centauro_'+uLab().replace(/\W/g,''),['Nome Pessoa Visita','Cidade','Quantidade','Valor'],cenList().map(o=>[o.nom,o.cid,o.n,o.v]))}
 
@@ -571,12 +579,13 @@ async function load(file){
 
 const REN={vc:renderVc,vv:renderVv,hv:renderHv,b2b:renderB2B};
 document.addEventListener('click',e=>{
- const t=e.target.closest('[data-f],[data-ts],[data-ex],[data-clr],[data-u],[data-tg],[data-exp],[data-wa],[data-kc],[data-ud],[data-dts],[data-dtx],[data-clh]');if(!t)return;const d=t.dataset;
+ const t=e.target.closest('[data-f],[data-ts],[data-ex],[data-clr],[data-u],[data-tg],[data-exp],[data-wa],[data-kc],[data-ud],[data-dts],[data-dtx],[data-drc],[data-clh]');if(!t)return;const d=t.dataset;
  if(d.u!==undefined){U=d.u;HV_ALL=false;HV_MODE='top';resetHv('top');upd();return}
  if(d.clh!==undefined){if(!confirm('Apagar todo o histórico de cargas deste navegador?'))return;HIST=[];PREV=null;try{localStorage.removeItem('trf_hist');localStorage.removeItem('trf_ids')}catch(x){}renderHs(PREV,CUR);return}
  if(d.kc!==undefined){const k='kp:'+d.kc;DT1=DT1===k?'':k;renderKP();showDt('dt1');return}
  if(d.ud!==undefined){const same=DT2&&DT2.u===d.ud&&DT2.dm===d.dm&&DT2.v===d.dv;DT2=same?null:{u:d.ud,dm:d.dm,v:d.dv};renderPu();showDt('dt2');return}
  if(d.dts!==undefined){const[b,by]=d.dts.split('|'),s=DS[b];DS[b]=s.by===by?{by,desc:!s.desc}:{by,desc:by==='uoT'};renderDt(b);return}
+ if(d.drc!==undefined){DRT.r=DRT.r===d.drc?'':d.drc;renderDt('dt1');return}
  if(d.dtx!==undefined){if(d.dtx==='dt1')DT1='';else DT2=null;renderKP();renderPu();renderDt(d.dtx);return}
  if(d.tg!==undefined){const s=EXP[d.tg];s.has(d.k)?s.delete(d.k):s.add(d.k);if(d.tg==='hv')HV_MODE='custom';REN[d.tg]();return}
  if(d.exp!==undefined){const[p,m]=d.exp.split('|');HV_MODE=m;if(m==='top')HV_ALL=false;else if(m==='all')HV_ALL=true;if(m==='none'){EXP.hv.clear();hvTree().ch.forEach(u=>EXP.hv.add(u.key))}else resetHv(m);renderHv();return}
